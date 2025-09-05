@@ -1,1 +1,1 @@
-https://my-artifact-server/downloads/package-v1.2.3.tar.gz
+https://my-artifact-server/downloads/package-v1.2.4.tar.gz
