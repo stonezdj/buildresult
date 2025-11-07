@@ -48,7 +48,7 @@ jobs:
 
       - name: Push cherry-pick branch
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         run: |
           BRANCH="cherry-pick-pr-${{ steps.vars.outputs.pr_number }}"
           git push origin "$BRANCH"
@@ -56,7 +56,7 @@ jobs:
       - name: Create pull request to main
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
           branch: cherry-pick-pr-${{ steps.vars.outputs.pr_number }}
           title: "Cherry-pick PR #${{ steps.vars.outputs.pr_number }} to main"
           body: |
