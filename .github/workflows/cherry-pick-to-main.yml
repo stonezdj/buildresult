@@ -1,0 +1,64 @@
+name: Cherry-pick merged PR to main
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - release-2.14.0   # 👈 the branch you want to monitor
+
+jobs:
+  cherry-pick:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0  # need full history for cherry-pick
+
+      - name: Set up Git
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Get merge commit SHA
+        id: vars
+        run: |
+          MERGE_COMMIT=$(jq -r '.pull_request.merge_commit_sha' "$GITHUB_EVENT_PATH")
+          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+          echo "merge_commit=$MERGE_COMMIT" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Create new branch for cherry-pick
+        run: |
+          BRANCH="cherry-pick-pr-${{ steps.vars.outputs.pr_number }}"
+          git checkout -b "$BRANCH"
+
+      - name: Fetch merged commit and cherry-pick
+        run: |
+          git fetch origin ${{ steps.vars.outputs.merge_commit }}
+          git cherry-pick -x ${{ steps.vars.outputs.merge_commit }} || \
+            (echo "Cherry-pick failed, aborting"; git cherry-pick --abort; exit 1)
+
+      - name: Push cherry-pick branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="cherry-pick-pr-${{ steps.vars.outputs.pr_number }}"
+          git push origin "$BRANCH"
+
+      - name: Create pull request to main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: cherry-pick-pr-${{ steps.vars.outputs.pr_number }}
+          title: "Cherry-pick PR #${{ steps.vars.outputs.pr_number }} to main"
+          body: |
+            This PR was automatically created to cherry-pick the merge commit from PR #${{ steps.vars.outputs.pr_number }} into `main`.
+          base: main
